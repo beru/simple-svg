@@ -43,8 +43,11 @@ int main()
 
 	// Red image border.
 	Polygon border(Stroke(1, Color::Red));
-	border << Point(0, 0) << Point(dimensions.width, 0)
-		<< Point(dimensions.width, dimensions.height) << Point(0, dimensions.height);
+	border
+		<< Point(0, 0)
+		<< Point(dimensions.width, 0)
+		<< Point(dimensions.width, dimensions.height)
+		<< Point(0, dimensions.height);
 	doc << border;
 
 	// Long notation.  Local variable is created, children are added to varaible.
@@ -73,7 +76,10 @@ int main()
 		{30, 10},
 		{40, 2},
 	};
-	chart << polyline_a << polyline_b << polyline_c;
+	chart
+		<< polyline_a
+		<< polyline_b
+		<< polyline_c;
 	doc << chart;
 
 	// Condensed notation, parenthesis isolate temporaries that are inserted into parents.
@@ -84,14 +90,39 @@ int main()
 		<< (Polyline(Stroke(.5, Color::Cyan)) += {{0, 5}, {10, 13}, {20, 16}})
 		);
 
-	doc << Circle(Point(80, 80), 20, Fill(Color(100, 200, 120)), Stroke(1, Color(200, 250, 150)));
+	doc << Circle(
+			Point(80, 80),						// center
+			20,									// diameter
+			Fill(Color(100, 200, 120)),			// fill
+			Stroke(1, Color(200, 250, 150))		// stroke
+		);
 
-	doc << Text(Point(5, 77), "Simple SVG", Color::Silver, Font(10, "Verdana"));
+	doc << Text(
+			Point(5, 77),		// origin
+			"Simple SVG",		// content
+			Color::Silver,		// fill color
+			Font(10, "Verdana")	// font
+		);
 
-	doc << (Polygon(Color(200, 160, 220), Stroke(.5, Color(150, 160, 200))) << Point(20, 70)
-		<< Point(25, 72) << Point(33, 70) << Point(35, 60) << Point(25, 55) << Point(18, 63));
+	doc << (
+			Polygon(
+				Color(200, 160, 220),
+				Stroke(.5, Color(150, 160, 200))
+			)
+			<< Point(20, 70)
+			<< Point(25, 72)
+			<< Point(33, 70)
+			<< Point(35, 60)
+			<< Point(25, 55)
+			<< Point(18, 63)
+		);
 
-	doc << Rectangle(Point(70, 55), 20, 15, Color::Yellow);
+	doc << Rectangle(
+			Point(70, 55),	// edge
+			20,				// width
+			15,				// height
+			Color::Yellow	// fill color
+		);
 
 	doc.save();
 }
