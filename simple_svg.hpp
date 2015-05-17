@@ -41,6 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>
 #include <initializer_list>
 #include <boost/optional.hpp>
+#include "concatenate.h"
 
 using boost::optional;
 using boost::make_optional;
@@ -201,15 +202,16 @@ public:
 	virtual ~Color() { }
 	string toString(const Layout&) const
 	{
-		ostringstream ss;
 		if (transparent)
-			ss	<< "transparent";
-		else
+			return "transparent";
+		else {
+			ostringstream ss;
 			ss	<< "rgb("
 				<< red << ","
 				<< green << ","
 				<< blue << ")";
-		return ss.str();
+			return ss.str();
+		}
 	}
 
 private:
@@ -255,10 +257,10 @@ public:
 		// If stroke width is invalid.
 		if (width < 0)
 			return string();
-		ostringstream ss;
-		ss	<< attribute("stroke-width", translateScale(width, layout))
-			<< attribute("stroke", color.toString(layout));
-		return ss.str();
+		return concatenate(
+			attribute("stroke-width", translateScale(width, layout)),
+			attribute("stroke", color.toString(layout))
+		);
 	}
 private:
 	double width;
@@ -271,10 +273,10 @@ public:
 	Font(double size = 12, const string& family = "Verdana") : size(size), family(family) { }
 	string toString(const Layout& layout) const
 	{
-		ostringstream ss;
-		ss	<< attribute("font-size", translateScale(size, layout))
-			<< attribute("font-family", family);
-		return ss.str();
+		return concatenate(
+			attribute("font-size", translateScale(size, layout)),
+			attribute("font-family", family)
+			);
 	}
 private:
 	double size;
@@ -321,15 +323,15 @@ public:
 	{ }
 	string toString(const Layout& layout) const
 	{
-		ostringstream ss;
-		ss	<< elemStart("circle")
-			<< attribute("cx", translateX(center.x, layout))
-			<< attribute("cy", translateY(center.y, layout))
-			<< attribute("r", translateScale(radius, layout))
-			<< fill.toString(layout)
-			<< stroke.toString(layout)
-			<< emptyElemEnd();
-		return ss.str();
+		return concatenate(
+			elemStart("circle"),
+			attribute("cx", translateX(center.x, layout)),
+			attribute("cy", translateY(center.y, layout)),
+			attribute("r", translateScale(radius, layout)),
+			fill.toString(layout),
+			stroke.toString(layout),
+			emptyElemEnd()
+			);
 	}
 	void offset(const Point& offset)
 	{
@@ -357,16 +359,16 @@ public:
 	{ }
 	string toString(const Layout& layout) const
 	{
-		ostringstream ss;
-		ss	<< elemStart("ellipse")
-			<< attribute("cx", translateX(center.x, layout))
-			<< attribute("cy", translateY(center.y, layout))
-			<< attribute("rx", translateScale(radius_width, layout))
-			<< attribute("ry", translateScale(radius_height, layout))
-			<< fill.toString(layout)
-			<< stroke.toString(layout)
-			<< emptyElemEnd();
-		return ss.str();
+		return concatenate(
+			elemStart("ellipse"),
+			attribute("cx", translateX(center.x, layout)),
+			attribute("cy", translateY(center.y, layout)),
+			attribute("rx", translateScale(radius_width, layout)),
+			attribute("ry", translateScale(radius_height, layout)),
+			fill.toString(layout),
+			stroke.toString(layout),
+			emptyElemEnd()
+			);
 	}
 	void offset(const Point& offset)
 	{
@@ -395,16 +397,16 @@ public:
 	{ }
 	string toString(const Layout& layout) const
 	{
-		ostringstream ss;
-		ss	<< elemStart("rect")
-			<< attribute("x", translateX(edge.x, layout))
-			<< attribute("y", translateY(edge.y, layout))
-			<< attribute("width", translateScale(width, layout))
-			<< attribute("height", translateScale(height, layout))
-			<< fill.toString(layout)
-			<< stroke.toString(layout)
-			<< emptyElemEnd();
-		return ss.str();
+		return concatenate(
+			elemStart("rect"),
+			attribute("x", translateX(edge.x, layout)),
+			attribute("y", translateY(edge.y, layout)),
+			attribute("width", translateScale(width, layout)),
+			attribute("height", translateScale(height, layout)),
+			fill.toString(layout),
+			stroke.toString(layout),
+			emptyElemEnd()
+			);
 	}
 	void offset(const Point& offset)
 	{
@@ -430,15 +432,15 @@ public:
 	{ }
 	string toString(const Layout& layout) const
 	{
-		ostringstream ss;
-		ss	<< elemStart("line")
-			<< attribute("x1", translateX(start_point.x, layout))
-			<< attribute("y1", translateY(start_point.y, layout))
-			<< attribute("x2", translateX(end_point.x, layout))
-			<< attribute("y2", translateY(end_point.y, layout))
-			<< stroke.toString(layout)
-			<< emptyElemEnd();
-		return ss.str();
+		return concatenate(
+			elemStart("line"),
+			attribute("x1", translateX(start_point.x, layout)),
+			attribute("y1", translateY(start_point.y, layout)),
+			attribute("x2", translateX(end_point.x, layout)),
+			attribute("y2", translateY(end_point.y, layout)),
+			stroke.toString(layout),
+			emptyElemEnd()
+			);
 	}
 	void offset(const Point& offset)
 	{
@@ -476,10 +478,13 @@ public:
 				<< ","
 				<< translateY(pt.y, layout)
 				<< " ";
-		ss	<< "\" "
-			<< fill.toString(layout)
-			<< stroke.toString(layout)
-			<< emptyElemEnd();
+		ss	<<
+			concatenate(
+				"\" ",
+				fill.toString(layout),
+				stroke.toString(layout),
+				emptyElemEnd()
+				);
 		return ss.str();
 	}
 	void offset(const Point& offset)
@@ -524,16 +529,20 @@ public:
 	string toString(const Layout& layout) const
 	{
 		ostringstream ss;
-		ss	<< elemStart("polyline")
-			<< "points=\"";
+		ss	<< concatenate(
+				elemStart("polyline"),
+				"points=\""
+			);
 		for (auto& pt: points) {
 			ss	<< translateX(pt.x, layout) << ","
 				<< translateY(pt.y, layout) << " ";
 		}
-		ss	<< "\" "
-			<< fill.toString(layout)
-			<< stroke.toString(layout)
-			<< emptyElemEnd();
+		ss	<< concatenate(
+				"\" ",
+				fill.toString(layout),
+				stroke.toString(layout),
+				emptyElemEnd()
+				);
 		return ss.str();
 	}
 	void offset(const Point& offset)
@@ -563,17 +572,17 @@ public:
 	{ }
 	string toString(const Layout& layout) const
 	{
-		ostringstream ss;
-		ss	<< elemStart("text")
-			<< attribute("x", translateX(origin.x, layout))
-			<< attribute("y", translateY(origin.y, layout))
-			<< fill.toString(layout)
-			<< stroke.toString(layout)
-			<< font.toString(layout)
-			<< ">"
-			<< content
-			<< elemEnd("text");
-		return ss.str();
+		return concatenate(
+			elemStart("text"),
+			attribute("x", translateX(origin.x, layout)),
+			attribute("y", translateY(origin.y, layout)),
+			fill.toString(layout),
+			stroke.toString(layout),
+			font.toString(layout),
+			">",
+			content,
+			elemEnd("text")
+		);
 	}
 	void offset(const Point& offset)
 	{
@@ -698,20 +707,20 @@ public:
 	}
 	string toString() const
 	{
-		ostringstream ss;
-		ss	<< "<?xml "
-			<< attribute("version", "1.0")
-			<< attribute("standalone", "no")
-			<< "?>\n<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" "
-			<< "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n<svg "
-			<< attribute("width", layout.dimensions.width, "px")
-			<< attribute("height", layout.dimensions.height, "px")
-			<< attribute("xmlns", "http://www.w3.org/2000/svg")
-			<< attribute("version", "1.1")
-			<< ">\n"
-			<< body_nodes_str
-			<< elemEnd("svg");
-		return ss.str();
+		return concatenate(
+			"<?xml ",
+			attribute("version", "1.0"),
+			attribute("standalone", "no"),
+			"?>\n<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" ",
+			"\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n<svg ",
+			attribute("width", layout.dimensions.width, "px"),
+			attribute("height", layout.dimensions.height, "px"),
+			attribute("xmlns", "http://www.w3.org/2000/svg"),
+			attribute("version", "1.1"),
+			">\n",
+			body_nodes_str,
+			elemEnd("svg")
+		);
 	}
 	bool save() const
 	{
