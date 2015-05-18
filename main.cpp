@@ -36,7 +36,7 @@ using namespace svg;
 
 // Demo page shows sample usage of the Simple SVG library.
 
-int main()
+void demo()
 {
 	Dimensions dimensions(100, 100);
 	Document doc("my_svg.svg", Layout(dimensions, Layout::BottomLeft));
@@ -125,5 +125,10 @@ int main()
 		);
 
 	doc.save();
+}
+
+int main()
+{
+	demo();
 }
 

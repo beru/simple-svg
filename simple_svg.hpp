@@ -41,29 +41,34 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>
 #include <initializer_list>
 #include <boost/optional.hpp>
-#include "concatenate.h"
+#include <boost/lexical_cast.hpp>
 
 using boost::optional;
 using boost::make_optional;
 using std::string;
-using std::ostringstream;
 using std::vector;
 
 namespace svg {
 
 // Utility XML/String Functions.
 template <typename T>
-string attribute(const string& attribute_name,
+void attribute(
+	string& s,
+	const string& attribute_name,
 	const T& value,
 	const string& unit = "")
 {
-	ostringstream ss;
-	ss << attribute_name << "=\"" << value << unit << "\" ";
-	return ss.str();
+	s += attribute_name;
+	s += "=\"";
+	s += toString(value);
+	s += unit;
+	s += "\" ";
 }
-string elemStart(const string& element_name)
+void elemStart(string& s, const string& element_name)
 {
-	return "\t<" + element_name + " ";
+	s += "\t<";
+	s += element_name;
+	s += " ";
 }
 string elemEnd(const string& element_name)
 {
@@ -72,6 +77,12 @@ string elemEnd(const string& element_name)
 string emptyElemEnd()
 {
 	return "/>\n";
+}
+
+template <typename T>
+string toString(const T& v)
+{
+	return boost::lexical_cast<string>(v);
 }
 
 struct Dimensions
@@ -136,6 +147,19 @@ struct Layout
 	Point origin_offset;
 };
 
+template <typename T>
+void attribute(
+	string& s,
+	const string& attribute_name,
+	const T& value,
+	const Layout& layout)
+{
+	s += attribute_name;
+	s += "=\"";
+	value.toString(s, layout);
+	s += "\" ";
+}
+
 // Convert coordinates in user space to SVG native space.
 double translateX(double x, const Layout& layout)
 {
@@ -163,7 +187,7 @@ class Serializeable
 public:
 	Serializeable() { }
 	virtual ~Serializeable() { };
-	virtual string toString(const Layout& layout) const = 0;
+	virtual void toString(string& s, const Layout& layout) const = 0;
 };
 
 class Color : public Serializeable
@@ -200,17 +224,18 @@ public:
 		}
 	}
 	virtual ~Color() { }
-	string toString(const Layout&) const
+	void toString(string& s, const Layout&) const override
 	{
 		if (transparent)
-			return "transparent";
+			s += "transparent";
 		else {
-			ostringstream ss;
-			ss	<< "rgb("
-				<< red << ","
-				<< green << ","
-				<< blue << ")";
-			return ss.str();
+			s += "rgb(";
+			s += svg::toString(red);
+			s += ",";
+			s += svg::toString(green);
+			s += ",";
+			s += svg::toString(blue);
+			s += ")";
 		}
 	}
 
@@ -233,11 +258,9 @@ class Fill : public Serializeable
 public:
 	Fill(Color::Defaults color) : color(color) { }
 	Fill(Color color = Color::Transparent) : color(color) { }
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
-		ostringstream ss;
-		ss << attribute("fill", color.toString(layout));
-		return ss.str();
+		attribute(s, "fill", color, layout);
 	}
 private:
 	Color color;
@@ -252,15 +275,13 @@ public:
 		width(width),
 		color(color)
 	{ }
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
 		// If stroke width is invalid.
 		if (width < 0)
-			return string();
-		return concatenate(
-			attribute("stroke-width", translateScale(width, layout)),
-			attribute("stroke", color.toString(layout))
-		);
+			return;
+		attribute(s, "stroke-width", translateScale(width, layout));
+		attribute(s, "stroke", color, layout);
 	}
 private:
 	double width;
@@ -271,12 +292,10 @@ class Font : public Serializeable
 {
 public:
 	Font(double size = 12, const string& family = "Verdana") : size(size), family(family) { }
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
-		return concatenate(
-			attribute("font-size", translateScale(size, layout)),
-			attribute("font-family", family)
-			);
+		attribute(s, "font-size", translateScale(size, layout));
+		attribute(s, "font-family", family);
 	}
 private:
 	double size;
@@ -292,7 +311,7 @@ public:
 		stroke(stroke)
 	{ }
 	virtual ~Shape() { }
-	virtual string toString(const Layout& layout) const = 0;
+	virtual void toString(string& s, const Layout& layout) const = 0;
 	virtual void offset(const Point& offset) = 0;
 protected:
 	Fill fill;
@@ -300,13 +319,11 @@ protected:
 };
 
 template <typename T>
-string vectorToString(const vector<T>& collection, const Layout& layout)
+void vectorToString(string& s, const vector<T>& collection, const Layout& layout)
 {
-	string combination_str;
 	for (auto& val: collection) {
-		combination_str += val.toString(layout);
+		val.toString(s, layout);
 	}
-	return combination_str;
 }
 
 class Circle : public Shape
@@ -321,17 +338,15 @@ public:
 		center(center),
 		radius(diameter / 2)
 	{ }
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
-		return concatenate(
-			elemStart("circle"),
-			attribute("cx", translateX(center.x, layout)),
-			attribute("cy", translateY(center.y, layout)),
-			attribute("r", translateScale(radius, layout)),
-			fill.toString(layout),
-			stroke.toString(layout),
-			emptyElemEnd()
-			);
+		elemStart(s, "circle");
+		attribute(s, "cx", translateX(center.x, layout));
+		attribute(s, "cy", translateY(center.y, layout));
+		attribute(s, "r", translateScale(radius, layout));
+		fill.toString(s, layout);
+		stroke.toString(s, layout);
+		s += emptyElemEnd();
 	}
 	void offset(const Point& offset)
 	{
@@ -357,18 +372,16 @@ public:
 		radius_width(width / 2),
 		radius_height(height / 2)
 	{ }
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
-		return concatenate(
-			elemStart("ellipse"),
-			attribute("cx", translateX(center.x, layout)),
-			attribute("cy", translateY(center.y, layout)),
-			attribute("rx", translateScale(radius_width, layout)),
-			attribute("ry", translateScale(radius_height, layout)),
-			fill.toString(layout),
-			stroke.toString(layout),
-			emptyElemEnd()
-			);
+		elemStart(s, "ellipse");
+		attribute(s, "cx", translateX(center.x, layout));
+		attribute(s, "cy", translateY(center.y, layout));
+		attribute(s, "rx", translateScale(radius_width, layout));
+		attribute(s, "ry", translateScale(radius_height, layout));
+		fill.toString(s, layout);
+		stroke.toString(s, layout);
+		s += emptyElemEnd();
 	}
 	void offset(const Point& offset)
 	{
@@ -395,18 +408,16 @@ public:
 		width(width),
 		height(height)
 	{ }
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
-		return concatenate(
-			elemStart("rect"),
-			attribute("x", translateX(edge.x, layout)),
-			attribute("y", translateY(edge.y, layout)),
-			attribute("width", translateScale(width, layout)),
-			attribute("height", translateScale(height, layout)),
-			fill.toString(layout),
-			stroke.toString(layout),
-			emptyElemEnd()
-			);
+		elemStart(s, "rect");
+		attribute(s, "x", translateX(edge.x, layout));
+		attribute(s, "y", translateY(edge.y, layout));
+		attribute(s, "width", translateScale(width, layout));
+		attribute(s, "height", translateScale(height, layout));
+		fill.toString(s, layout);
+		stroke.toString(s, layout);
+		s += emptyElemEnd();
 	}
 	void offset(const Point& offset)
 	{
@@ -430,17 +441,15 @@ public:
 		start_point(start_point),
 		end_point(end_point)
 	{ }
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
-		return concatenate(
-			elemStart("line"),
-			attribute("x1", translateX(start_point.x, layout)),
-			attribute("y1", translateY(start_point.y, layout)),
-			attribute("x2", translateX(end_point.x, layout)),
-			attribute("y2", translateY(end_point.y, layout)),
-			stroke.toString(layout),
-			emptyElemEnd()
-			);
+		elemStart(s, "line");
+		attribute(s, "x1", translateX(start_point.x, layout));
+		attribute(s, "y1", translateY(start_point.y, layout));
+		attribute(s, "x2", translateX(end_point.x, layout));
+		attribute(s, "y2", translateY(end_point.y, layout));
+		stroke.toString(s, layout);
+		s += emptyElemEnd();
 	}
 	void offset(const Point& offset)
 	{
@@ -468,24 +477,20 @@ public:
 		points.push_back(point);
 		return *this;
 	}
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
-		ostringstream ss;
-		ss	<< elemStart("polygon")
-			<< "points=\"";
-		for (auto& pt: points)
-			ss	<< translateX(pt.x, layout)
-				<< ","
-				<< translateY(pt.y, layout)
-				<< " ";
-		ss	<<
-			concatenate(
-				"\" ",
-				fill.toString(layout),
-				stroke.toString(layout),
-				emptyElemEnd()
-				);
-		return ss.str();
+		elemStart(s, "polygon");
+		s += "points=\"";
+		for (auto& pt: points) {
+			s += svg::toString(translateX(pt.x, layout));
+			s += ",";
+			s += svg::toString(translateY(pt.y, layout));
+			s += " ";
+		}
+		s += "\" ";
+		fill.toString(s, layout);
+		stroke.toString(s, layout);
+		s += emptyElemEnd();
 	}
 	void offset(const Point& offset)
 	{
@@ -526,24 +531,20 @@ public:
 		return *this;
 	}
 
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
-		ostringstream ss;
-		ss	<< concatenate(
-				elemStart("polyline"),
-				"points=\""
-			);
+		elemStart(s, "polyline");
+		s += "points=\"";
 		for (auto& pt: points) {
-			ss	<< translateX(pt.x, layout) << ","
-				<< translateY(pt.y, layout) << " ";
+			s += svg::toString(translateX(pt.x, layout));
+			s += ",";
+			s += svg::toString(translateY(pt.y, layout));
+			s += " ";
 		}
-		ss	<< concatenate(
-				"\" ",
-				fill.toString(layout),
-				stroke.toString(layout),
-				emptyElemEnd()
-				);
-		return ss.str();
+		s += "\" ";
+		fill.toString(s, layout);
+		stroke.toString(s, layout);
+		s += emptyElemEnd();
 	}
 	void offset(const Point& offset)
 	{
@@ -570,19 +571,17 @@ public:
 		content(content),
 		font(font)
 	{ }
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
-		return concatenate(
-			elemStart("text"),
-			attribute("x", translateX(origin.x, layout)),
-			attribute("y", translateY(origin.y, layout)),
-			fill.toString(layout),
-			stroke.toString(layout),
-			font.toString(layout),
-			">",
-			content,
-			elemEnd("text")
-		);
+		elemStart(s, "text");
+		attribute(s, "x", translateX(origin.x, layout));
+		attribute(s, "y", translateY(origin.y, layout));
+		fill.toString(s, layout);
+		stroke.toString(s, layout);
+		font.toString(s, layout);
+		s += ">";
+		s += content;
+		s += elemEnd("text");
 	}
 	void offset(const Point& offset)
 	{
@@ -614,15 +613,14 @@ public:
 		polylines.push_back(polyline);
 		return *this;
 	}
-	string toString(const Layout& layout) const
+	void toString(string& s, const Layout& layout) const override
 	{
 		if (polylines.empty())
-			return "";
-		string ret;
+			return;
 		for (auto& polyline: polylines) {
-			ret += polylineToString(polyline, layout);
+			polylineToString(s, polyline, layout);
 		}
-		return ret + axisString(layout);
+		axisString(s, layout);
 	}
 	void offset(const Point& offset)
 	{
@@ -654,11 +652,11 @@ private:
 
 		return make_optional(Dimensions(max->x - min->x, max->y - min->y));
 	}
-	string axisString(const Layout& layout) const
+	void axisString(string& s, const Layout& layout) const
 	{
 		optional<Dimensions> dimensions = getDimensions();
 		if (!dimensions)
-			return "";
+			return;
 
 		// Make the axis 10% wider and higher than the data points.
 		double width = dimensions->width * 1.1;
@@ -670,9 +668,9 @@ private:
 			<< Point(margin.width, margin.height)
 			<< Point(margin.width + width, margin.height);
 
-		return axis.toString(layout);
+		axis.toString(s, layout);
 	}
-	string polylineToString(const Polyline& polyline, const Layout& layout) const
+	void polylineToString(string& s, const Polyline& polyline, const Layout& layout) const
 	{
 		Polyline shifted_polyline = polyline;
 		shifted_polyline.offset(Point(margin.width, margin.height));
@@ -687,7 +685,8 @@ private:
 				)
 			);
 		}
-		return shifted_polyline.toString(layout) + vectorToString(vertices, layout);
+		shifted_polyline.toString(s, layout);
+		vectorToString(s, vertices, layout);
 	}
 };
 
@@ -702,34 +701,34 @@ public:
 
 	Document& operator << (const Shape& shape)
 	{
-		body_nodes_str += shape.toString(layout);
+		shape.toString(body_nodes_str, layout);
 		return *this;
 	}
-	string toString() const
+	void toString(string& s) const
 	{
-		return concatenate(
-			"<?xml ",
-			attribute("version", "1.0"),
-			attribute("standalone", "no"),
-			"?>\n<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" ",
-			"\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n<svg ",
-			attribute("width", layout.dimensions.width, "px"),
-			attribute("height", layout.dimensions.height, "px"),
-			attribute("xmlns", "http://www.w3.org/2000/svg"),
-			attribute("version", "1.1"),
-			">\n",
-			body_nodes_str,
-			elemEnd("svg")
-		);
+		s += "<?xml ";
+		attribute(s, "version", "1.0");
+		attribute(s, "standalone", "no");
+		s += "?>\n<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" ";
+		s += "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n<svg ";
+		attribute(s, "width", layout.dimensions.width, "px");
+		attribute(s, "height", layout.dimensions.height, "px");
+		attribute(s, "xmlns", "http://www.w3.org/2000/svg");
+		attribute(s, "version", "1.1");
+		s += ">\n";
+		s += body_nodes_str;
+		s += elemEnd("svg");
 	}
 	bool save() const
 	{
-		std::ofstream ofs(file_name.c_str());
-		if (!ofs.good())
+		FILE* f = fopen(file_name.c_str(), "wb");
+		if (!f) {
 			return false;
-
-		ofs << toString();
-		ofs.close();
+		}
+		string s;
+		toString(s);
+		fwrite(s.c_str(), 1, s.size(), f);
+		fclose(f);
 		return true;
 	}
 private:
