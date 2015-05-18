@@ -69,9 +69,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\main.cpp" />
+    <ClCompile Include="..\timer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\simple_svg.hpp" />
+    <ClInclude Include="..\timer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

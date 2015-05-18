@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include "simple_svg.hpp"
+#include "timer.h"
 
 using namespace svg;
 
@@ -129,6 +130,9 @@ void demo()
 
 int main()
 {
+	Timer t;
 	demo();
+	printf("%f\n", t.ElapsedSecond() * 1000.0);
+	return 0;
 }
 
