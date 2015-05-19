@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "simple_svg.hpp"
 #include "timer.h"
+#include <Windows.h>
 
 using namespace svg;
 
@@ -43,7 +44,7 @@ void demo()
 	Document doc("my_svg.svg", Layout(dimensions, Layout::BottomLeft));
 
 	// Red image border.
-	Polygon border(Stroke(1, Color::Red));
+	svg::Polygon border(Stroke(1, Color::Red));
 	border
 		<< Point(0, 0)
 		<< Point(dimensions.width, 0)
@@ -53,9 +54,9 @@ void demo()
 
 	// Long notation.  Local variable is created, children are added to varaible.
 	LineChart chart(5.0);
-	Polyline polyline_a(Stroke(.5, Color::Blue));
-	Polyline polyline_b(Stroke(.5, Color::Aqua));
-	Polyline polyline_c(Stroke(.5, Color::Fuchsia));
+	svg::Polyline polyline_a(Stroke(.5, Color::Blue));
+	svg::Polyline polyline_b(Stroke(.5, Color::Aqua));
+	svg::Polyline polyline_c(Stroke(.5, Color::Fuchsia));
 	polyline_a += {
 		{0, 0},
 		{10, 30},
@@ -77,6 +78,7 @@ void demo()
 		{30, 10},
 		{40, 2},
 	};
+
 	chart
 		<< polyline_a
 		<< polyline_b
@@ -86,17 +88,17 @@ void demo()
 	// Condensed notation, parenthesis isolate temporaries that are inserted into parents.
 	doc << (
 		LineChart(Dimensions(65, 5))
-		<< (Polyline(Stroke(.5, Color::Blue)) += {{0, 0}, {10, 8}, {20, 13}})
-		<< (Polyline(Stroke(.5, Color::Orange)) += {{0, 10}, {10, 16}, {20, 20}})
-		<< (Polyline(Stroke(.5, Color::Cyan)) += {{0, 5}, {10, 13}, {20, 16}})
+		<< (svg::Polyline(Stroke(.5, Color::Blue)) += {{0, 0}, {10, 8}, {20, 13}})
+		<< (svg::Polyline(Stroke(.5, Color::Orange)) += {{0, 10}, {10, 16}, {20, 20}})
+		<< (svg::Polyline(Stroke(.5, Color::Cyan)) += {{0, 5}, {10, 13}, {20, 16}})
 		);
 
 	doc << Circle(
-			Point(80, 80),						// center
-			20,									// diameter
-			Fill(Color(100, 200, 120)),			// fill
-			Stroke(1, Color(200, 250, 150))		// stroke
-		);
+		Point(80, 80),						// center
+		20,									// diameter
+		Fill(Color(100, 200, 120)),			// fill
+		Stroke(1, Color(200, 250, 150))		// stroke
+	);
 
 	doc << Text(
 			Point(5, 77),		// origin
@@ -106,7 +108,7 @@ void demo()
 		);
 
 	doc << (
-			Polygon(
+			svg::Polygon(
 				Color(200, 160, 220),
 				Stroke(.5, Color(150, 160, 200))
 			)
@@ -118,7 +120,19 @@ void demo()
 			<< Point(18, 63)
 		);
 
-	doc << Rectangle(
+#if 0
+	Stroke stroke(2.5, Color(100, 0, 0));
+	stroke.linecap = Stroke::Linecap::round;
+	stroke.dasharray = {5, 5};
+
+	doc << svg::Line(
+		Point(15, 15),
+		Point(30, 30),
+		stroke
+		);
+#endif
+
+	doc << svg::Rectangle(
 			Point(70, 55),	// edge
 			20,				// width
 			15,				// height

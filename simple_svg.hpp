@@ -37,11 +37,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <initializer_list>
 #include <boost/optional.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 using boost::optional;
 using boost::make_optional;
 using std::string;
 using std::vector;
+using std::initializer_list;
 
 namespace svg {
 
@@ -184,17 +186,15 @@ double translateScale(double dimension, const Layout& layout)
 	return dimension * layout.scale;
 }
 
-class Serializeable
+struct Serializeable
 {
-public:
 	Serializeable() { }
 	virtual ~Serializeable() { };
 	virtual void toString(string& s, const Layout& layout) const = 0;
 };
 
-class Color : public Serializeable
+struct Color : public Serializeable
 {
-public:
 	enum Defaults { Transparent = -1, Aqua, Black, Blue, Brown, Cyan, Fuchsia,
 		Green, Lime, Magenta, Orange, Purple, Red, Silver, White, Yellow };
 
@@ -241,7 +241,6 @@ public:
 		}
 	}
 
-private:
 	bool transparent;
 	int red;
 	int green;
@@ -255,58 +254,79 @@ private:
 	}
 };
 
-class Fill : public Serializeable
+struct Fill : public Serializeable
 {
-public:
 	Fill(Color::Defaults color) : color(color) { }
 	Fill(Color color = Color::Transparent) : color(color) { }
 	void toString(string& s, const Layout& layout) const override
 	{
 		attribute(s, "fill", color, layout);
 	}
-private:
 	Color color;
 };
 
-class Stroke : public Serializeable
+struct Stroke : public Serializeable
 {
-public:
-	Stroke(double width = -1,
-		Color color = Color::Transparent)
+	enum class Linecap {
+		butt,
+		round,
+		square,
+	};
+
+	Stroke(double width = -1, Color color = Color::Transparent)
 		:
 		width(width),
 		color(color)
 	{ }
+
+	static const char* toString(Linecap linecap) {
+		switch (linecap) {
+		case Linecap::butt: return "butt";
+		case Linecap::round: return "round";
+		case Linecap::square: return "square";
+		default: return "butt";
+		}
+	}
 	void toString(string& s, const Layout& layout) const override
 	{
 		// If stroke width is invalid.
 		if (width < 0)
 			return;
-		attribute(s, "stroke-width", translateScale(width, layout));
 		attribute(s, "stroke", color, layout);
+		attribute(s, "stroke-width", translateScale(width, layout));
+		if (linecap) {
+			attribute(s, "stroke-linecap", toString(*linecap));
+		}
+		if (!dasharray.empty()) {
+			string tmp;
+			for (auto dash: dasharray) {
+				tmp += svg::toString(dash);
+				tmp += ",";
+			}
+			attribute(s, "stroke-dasharray", tmp);
+		}
 	}
-private:
+
 	double width;
 	Color color;
+	optional<Linecap> linecap;
+	vector<double> dasharray;
 };
 
-class Font : public Serializeable
+struct Font : public Serializeable
 {
-public:
 	Font(double size = 12, const string& family = "Verdana") : size(size), family(family) { }
 	void toString(string& s, const Layout& layout) const override
 	{
 		attribute(s, "font-size", translateScale(size, layout));
 		attribute(s, "font-family", family);
 	}
-private:
 	double size;
 	string family;
 };
 
-class Shape : public Serializeable
+struct Shape : public Serializeable
 {
-public:
 	Shape(const Fill& fill = Fill(), const Stroke& stroke = Stroke())
 		:
 		fill(fill),
@@ -315,7 +335,7 @@ public:
 	virtual ~Shape() { }
 	virtual void toString(string& s, const Layout& layout) const = 0;
 	virtual void offset(const Point& offset) = 0;
-protected:
+
 	Fill fill;
 	Stroke stroke;
 };
@@ -328,9 +348,8 @@ void vectorToString(string& s, const vector<T>& collection, const Layout& layout
 	}
 }
 
-class Circle : public Shape
+struct Circle : public Shape
 {
-public:
 	Circle(const Point& center,
 		double diameter,
 		const Fill& fill,
@@ -354,14 +373,12 @@ public:
 	{
 		center += offset;
 	}
-private:
 	Point center;
 	double radius;
 };
 
-class Elipse : public Shape
+struct Elipse : public Shape
 {
-public:
 	Elipse(const Point& center,
 		double width,
 		double height,
@@ -388,15 +405,13 @@ public:
 	{
 		center += offset;
 	}
-private:
 	Point center;
 	double radius_width;
 	double radius_height;
 };
 
-class Rectangle : public Shape
+struct Rectangle : public Shape
 {
-public:
 	Rectangle(const Point& edge,
 		double width,
 		double height,
@@ -423,15 +438,14 @@ public:
 	{
 		edge += offset;
 	}
-private:
+
 	Point edge;
 	double width;
 	double height;
 };
 
-class Line : public Shape
+struct Line : public Shape
 {
-public:
 	Line(const Point& start_point,
 		const Point& end_point,
 		const Stroke& stroke = Stroke())
@@ -455,14 +469,13 @@ public:
 		start_point += offset;
 		end_point += offset;
 	}
-private:
+
 	Point start_point;
 	Point end_point;
 };
 
-class Polygon : public Shape
+struct Polygon : public Shape
 {
-public:
 	Polygon(const Fill& fill = Fill(), const Stroke& stroke = Stroke())
 		:
 		Shape(fill, stroke)
@@ -494,13 +507,12 @@ public:
 			pt += offset;
 		}
 	}
-private:
+
 	vector<Point> points;
 };
 
-class Polyline : public Shape
+struct Polyline : public Shape
 {
-public:
 	Polyline(const Fill& fill = Fill(), const Stroke& stroke = Stroke())
 		: Shape(fill, stroke) { }
 	Polyline(const Stroke& stroke = Stroke()) : Shape(Color::Transparent, stroke) { }
@@ -512,7 +524,7 @@ public:
 		points(points)
 	{ }
 
-	Polyline& operator += (std::initializer_list<double[2]> pts)
+	Polyline& operator += (initializer_list<double[2]> pts)
 	{
 		for (auto& pt: pts) {
 			points.push_back(Point(pt[0], pt[1]));
@@ -550,9 +562,8 @@ public:
 	vector<Point> points;
 };
 
-class Text : public Shape
+struct Text : public Shape
 {
-public:
 	Text(const Point& origin,
 		const string& content,
 		const Fill& fill = Fill(),
@@ -581,16 +592,15 @@ public:
 	{
 		origin += offset;
 	}
-private:
+
 	Point origin;
 	string content;
 	Font font;
 };
 
 // Sample charting class.
-class LineChart : public Shape
+struct LineChart : public Shape
 {
-public:
 	LineChart(Dimensions margin = Dimensions(),
 		double scale = 1,
 		const Stroke& axis_stroke = Stroke(.5, Color::Purple))
@@ -621,7 +631,7 @@ public:
 			polyline.offset(offset);
 		}
 	}
-private:
+
 	Stroke axis_stroke;
 	Dimensions margin;
 	double scale;
@@ -683,9 +693,8 @@ private:
 	}
 };
 
-class Document
+struct Document
 {
-public:
 	Document(const string& file_name, Layout layout = Layout())
 		:
 		file_name(file_name),
@@ -724,10 +733,9 @@ public:
 		fclose(f);
 		return true;
 	}
-private:
+
 	string file_name;
 	Layout layout;
-
 	string body_nodes_str;
 };
 
