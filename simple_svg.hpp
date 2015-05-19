@@ -34,11 +34,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 #include <string>
-#include <sstream>
-#include <fstream>
-
-#include <iostream>
-#include <array>
 #include <initializer_list>
 #include <boost/optional.hpp>
 #include <boost/lexical_cast.hpp>
