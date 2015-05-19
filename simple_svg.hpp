@@ -98,6 +98,13 @@ struct Point
 	Point(double x = 0, double y = 0) : x(x), y(y) { }
 	double x;
 	double y;
+
+	Point& operator += (const Point& p)
+	{
+		x += p.x;
+		y += p.y;
+		return *this;
+	}
 };
 
 optional<Point> getMinPoint(const vector<Point>& points)
@@ -350,8 +357,7 @@ public:
 	}
 	void offset(const Point& offset)
 	{
-		center.x += offset.x;
-		center.y += offset.y;
+		center += offset;
 	}
 private:
 	Point center;
@@ -385,8 +391,7 @@ public:
 	}
 	void offset(const Point& offset)
 	{
-		center.x += offset.x;
-		center.y += offset.y;
+		center += offset;
 	}
 private:
 	Point center;
@@ -421,8 +426,7 @@ public:
 	}
 	void offset(const Point& offset)
 	{
-		edge.x += offset.x;
-		edge.y += offset.y;
+		edge += offset;
 	}
 private:
 	Point edge;
@@ -453,11 +457,8 @@ public:
 	}
 	void offset(const Point& offset)
 	{
-		start_point.x += offset.x;
-		start_point.y += offset.y;
-
-		end_point.x += offset.x;
-		end_point.y += offset.y;
+		start_point += offset;
+		end_point += offset;
 	}
 private:
 	Point start_point;
@@ -495,8 +496,7 @@ public:
 	void offset(const Point& offset)
 	{
 		for (auto& pt: points) {
-			pt.x += offset.x;
-			pt.y += offset.y;
+			pt += offset;
 		}
 	}
 private:
@@ -549,8 +549,7 @@ public:
 	void offset(const Point& offset)
 	{
 		for (auto& pt: points) {
-			pt.x += offset.x;
-			pt.y += offset.y;
+			pt += offset;
 		}
 	}
 	vector<Point> points;
@@ -585,8 +584,7 @@ public:
 	}
 	void offset(const Point& offset)
 	{
-		origin.x += offset.x;
-		origin.y += offset.y;
+		origin += offset;
 	}
 private:
 	Point origin;
